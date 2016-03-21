@@ -62,6 +62,16 @@ if (db[collection].count() === 0) {
   throw 'The collection specified (' + collection + ') in the database specified ('+ db +') does not exist or is empty.\n'+
         'Possible collection options for database specified: ' + collNames + '.';
 }
+var dropdownFields = this.dropdownFields;
+// log('the dropdownFields are: ' + dropdownFields);
+// log('length of dd fields is: ' + dropdownFields.length);
+// log('array[1]: ' + dropdownFields[1]);
+
+
+
+// log('col name: ' + config.collection);
+
+
 
 var readConfig = function(configProvider) {
   var config = {};
@@ -75,12 +85,13 @@ var readConfig = function(configProvider) {
   read('limit', db[config.collection].find(config.query).count());
   read('maxDepth', 99);
   read('sort', {_id: -1});
-  read('outputFormat', 'ascii');
+  read('outputFormat', 'json');
   read('persistResults', false);
   read('resultsDatabase', 'varietyResults');
   read('resultsCollection', collection + 'Keys');
   read('resultsUser', null);
   read('resultsPass', null);
+  read('dropdownFields', []);
   return config;
 };
 
@@ -127,6 +138,32 @@ var PluginsClass = function(context) {
 
   log('Using plugins of ' + tojson(this.plugins.map(function(plugin){return plugin.path;})));
 };
+
+
+
+// var dropdownItems = {};
+
+// for (var doc in dropdownFields) {
+
+//   dropdownItems[doc] = [];
+
+
+//   var ddresult = db[config.collection].distinct(doc);
+
+//   for (var item in ddresult) {
+//     var dropdownObj = {
+//       'name': item,
+//       'value': item
+//     };
+//     dropdownItems[doc].push(dropdownObj);
+//     return;
+//   }
+
+//   return;
+
+// }
+
+
 
 var $plugins = new PluginsClass(this);
 $plugins.execute('onConfig', config);
@@ -207,8 +244,14 @@ var serializeDoc = function(doc, maxDepth) {
 // convert document to key-value map, where value is always an array with types as plain strings
 var analyseDocument = function(document) {
   var result = {};
+  // var ddObj = {};
   for (var key in document) {
     var value = document[key];
+
+    // if(dropdownFields.indexOf(key) != -1) {
+    //   log(document[key]);
+    // }
+
     //translate unnamed object key from {_parent_name_}.{_index_} to {_parent_name_}.XX
     key = key.replace(/\.\d+/g,'.$');
     if(typeof result[key] === 'undefined') {
@@ -274,7 +317,7 @@ var convertResults = function(interimResults, documentsCount) {
           return keyVal;
         }
       } else {
-        return "root"; 
+        return "root";
       }
     }
 
@@ -285,24 +328,25 @@ var convertResults = function(interimResults, documentsCount) {
 
     var keyTypex = Object.keys(entry.types)[0];
 
-
+    var fieldName = fieldGet(key);
 
     var keyObjectx = {
         '_id': {'key':key},
         'value': {'types':getKeys(entry.types)},
         'totalOccurrences': entry.totalOccurrences,
         'percentContaining': entry.totalOccurrences * 100 / documentsCount,
-        'field': fieldGet(key),
+        'field': fieldName,
         'parentKey': parentGet(key),
         'fieldFullPath':key,
-        'fieldType': keyTypex,
-        // 'schemaInfo': {[keyFunction(key)]:{'type': keyTypex}}
-                // '"' + key + '"' : {'type': keyTypex}
+        'fieldType': keyTypex
     }
-    // var tester = keyFunction(key, keyTypex);
 
-    // keyFunction(key).toString()
-    // keyObjectx[keyObjectx.fieldFullPath] = {'type': keyTypex};
+    if(dropdownFields.indexOf(key) != -1) {
+      // log('the key is: ' + key);        
+      var ddresult = db[config.collection].distinct(key);
+      keyObjectx['menuItems'] = ddresult
+      // log('added dropdown option for: ' + key);
+    }
 
     varietyResults.push(keyObjectx);
 
@@ -337,6 +381,8 @@ DBQuery.prototype.reduce = function(callback, initialValue) {
   });
   return result;
 };
+
+
 
 var cursor = db[config.collection].find(config.query).sort(config.sort).limit(config.limit);
 var interimResults = cursor.reduce(reduceDocuments, {});

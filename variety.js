@@ -450,7 +450,7 @@ var pluginsOutput = $plugins.execute('formatResults', varietyResults);
 if (pluginsOutput.length > 0) {
   pluginsOutput.forEach(function(i){print(i);});
 } else if(config.outputFormat === 'json') {
-  printjson(varietyResults); // valid formatted json output, compressed variant is printjsononeline()
+  printjsononeline(varietyResults); // valid formatted json output, compressed variant is printjsononeline()
 } else {
    print(createAsciiTable(varietyResults)); // output nice ascii table with results
 }
